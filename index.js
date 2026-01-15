@@ -18,9 +18,11 @@ app.use('/api/participants', participantRoutes);
 app.use('/api/events', eventRoutes);
 
 app.get('/', (req, res) => {
-  res.send('Hello World!');
+  res.send('✅ TRI-COD 2K26 Backend Running Successfully!');
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
+
+module.exports = app;
