@@ -17,17 +17,10 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/participants', participantRoutes);
 app.use('/api/events', eventRoutes);
 
-app.get("/", (req, res) => {
-  res.send("✅ TRI-COD 2K26 Backend Running Successfully on Vercel!");
+app.get('/', (req, res) => {
+  res.send('Hello World!');
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 API endpoints:`);
-  console.log(`   - Users: http://localhost:${PORT}/api/users`);
-  console.log(`   - Admin: http://localhost:${PORT}/api/admin`);
-  console.log(`   - Participants: http://localhost:${PORT}/api/participants`);
-  console.log(`   - Events: http://localhost:${PORT}/api/events`);
+  console.log(`Server running on port ${PORT}`);
 });
-
-module.exports = app;
