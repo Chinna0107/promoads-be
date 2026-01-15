@@ -17,8 +17,8 @@ app.use(
       "http://localhost:3000",
 
       // Delivery frontend
-      "https://trishna-codeathon.vercel.app/",
-      "https://trishna-codeathon-git-main-hemanths-projects-89508a02.vercel.app/",
+      "https://trishna-codeathon.vercel.app",
+      "https://trishna-codeathon-git-main-hemanths-projects-89508a02.vercel.app",
 
       // ChinnaMart frontend
       // "https://chinnamart.vercel.app",
