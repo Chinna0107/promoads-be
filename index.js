@@ -29,3 +29,5 @@ app.listen(PORT, () => {
   console.log(`   - Participants: http://localhost:${PORT}/api/participants`);
   console.log(`   - Events: http://localhost:${PORT}/api/events`);
 });
+
+module.exports = app;
