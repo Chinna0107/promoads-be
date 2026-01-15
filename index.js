@@ -12,24 +12,15 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: [
-      // Local
       "http://localhost:5173",
       "http://localhost:3000",
-
-      // Delivery frontend
       "https://trishna-codeathon.vercel.app",
-      "https://trishna-codeathon-git-main-hemanths-projects-89508a02.vercel.app",
-
-      // ChinnaMart frontend
-      // "https://chinnamart.vercel.app",
-      // "https://chinnamart.vercel.app/",
-      // "https://chinnamart-git-main-chinna0107s-projects.vercel.app"
+      "https://trishna-codeathon-git-main-hemanths-projects-89508a02.vercel.app"
     ],
     credentials: true,
   })
 );
 
-app.use(cors());
 app.use(express.json());
 
 app.use('/api/users', userRoutes);
