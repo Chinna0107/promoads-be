@@ -13,6 +13,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
+      "http://localhost:5174",
       "http://localhost:3000",
       "https://trishna-codeathon.vercel.app",
       "https://trishna-codeathon-git-main-hemanths-projects-89508a02.vercel.app"

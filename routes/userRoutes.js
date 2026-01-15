@@ -14,11 +14,19 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-let visitorCount = 0;
-
-router.get('/visitor-count', (req, res) => {
-  visitorCount++;
-  res.json({ count: visitorCount });
+router.get('/visitor-count', async (req, res) => {
+  try {
+    const result = await sql`
+      INSERT INTO visitor_count (id, count) 
+      VALUES (1, 1) 
+      ON CONFLICT (id) 
+      DO UPDATE SET count = visitor_count.count + 1 
+      RETURNING count
+    `;
+    res.json({ count: result[0].count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/send-otp', async (req, res) => {
@@ -121,7 +129,7 @@ router.post('/login', async (req, res) => {
   const { emailOrMobile, password } = req.body;
 
   if (!emailOrMobile || !password) {
-    return res.status(400).json({ message: 'Email/Mobile and password are required.' });
+    return res.status(400).json({ error: 'Email/Mobile and password are required.' });
   }
 
   try {
@@ -144,14 +152,14 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
-      return res.status(401).json({ message: 'User not found.' });
+      return res.status(401).json({ error: 'User not found.' });
     }
 
     const userPassword = user.type === 'individual' ? user.password : user.leader_password;
     const match = await bcrypt.compare(password, userPassword);
 
     if (!match) {
-      return res.status(401).json({ message: 'Incorrect password.' });
+      return res.status(401).json({ error: 'Incorrect password.' });
     }
 
     const isAdmin = user.is_admin || false;
@@ -160,7 +168,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, email: userEmail, is_admin: isAdmin },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'secret123',
       { expiresIn: '1h' }
     );
 
@@ -177,7 +185,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
