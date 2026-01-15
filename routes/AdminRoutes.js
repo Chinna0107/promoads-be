@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { sql } = require('../../db');
-const { authenticateAdmin } = require('../../middleware/admin');
+const { sql } = require('../db');
+const { authenticateAdmin } = require('../middleware/admin');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 
