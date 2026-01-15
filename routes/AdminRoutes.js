@@ -5,6 +5,7 @@ const { authenticateAdmin } = require('./adminAuth');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 
+// Admin routes for TRI-COD 2K26
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
