@@ -82,11 +82,13 @@ router.post('/send-notification', authenticateAdmin, upload.single('attachment')
       const individual = await sql`SELECT email FROM individual_registrations`;
       const team = await sql`SELECT leader_email as email FROM team_registrations`;
       recipients = [...individual, ...team].map(u => u.email);
-    } else {
+    } else if (userIds && userIds.length > 0) {
       const parsedIds = typeof userIds === 'string' ? JSON.parse(userIds) : userIds;
-      const individual = await sql`SELECT email FROM individual_registrations WHERE id IN ${sql(parsedIds)}`;
-      const team = await sql`SELECT leader_email as email FROM team_registrations WHERE id IN ${sql(parsedIds)}`;
-      recipients = [...individual, ...team].map(u => u.email);
+      if (parsedIds.length > 0) {
+        const individual = await sql`SELECT email FROM individual_registrations WHERE id = ANY(${parsedIds})`;
+        const team = await sql`SELECT leader_email as email FROM team_registrations WHERE id = ANY(${parsedIds})`;
+        recipients = [...individual, ...team].map(u => u.email);
+      }
     }
 
     if (recipients.length === 0) {

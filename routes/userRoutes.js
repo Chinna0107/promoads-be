@@ -94,7 +94,11 @@ router.post('/register', async (req, res) => {
 router.post('/register-team', async (req, res) => {
   try {
     const { teamName, teamLeader, members, eventId, eventName, transactionId, screenshotUrl } = req.body;
-    const totalMembers = members.length + 1;
+    
+    console.log('Team registration request:', { teamName, memberCount: members?.length, eventId, eventName });
+    console.log('Members:', JSON.stringify(members, null, 2));
+    
+    const totalMembers = (members?.length || 0) + 1;
     const amount = totalMembers * 100;
 
     const hashedPassword = await bcrypt.hash(teamLeader.password, 10);
@@ -119,8 +123,10 @@ router.post('/register-team', async (req, res) => {
       RETURNING *
     `;
 
+    console.log('Registration successful:', registration[0].id);
     res.json({ message: 'Team registration successful', registration: registration[0] });
   } catch (error) {
+    console.error('Team registration error:', error);
     res.status(500).json({ error: error.message });
   }
 });
