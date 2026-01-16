@@ -135,6 +135,7 @@ router.get('/my-event', async (req, res) => {
 router.post('/mark-attendance', async (req, res) => {
   try {
     const { email, eventName, present } = req.body;
+    console.log('Mark attendance request:', { email, eventName, present });
     
     const individual = await sql`
       UPDATE individual_registrations 
@@ -142,6 +143,7 @@ router.post('/mark-attendance', async (req, res) => {
       WHERE email = ${email} AND event_name = ${eventName}
       RETURNING *
     `;
+    console.log('Individual updated:', individual.length);
     
     const team = await sql`
       UPDATE team_registrations 
@@ -149,6 +151,7 @@ router.post('/mark-attendance', async (req, res) => {
       WHERE leader_email = ${email} AND event_name = ${eventName}
       RETURNING *
     `;
+    console.log('Team updated:', team.length);
     
     if (individual.length === 0 && team.length === 0) {
       return res.status(404).json({ error: 'Participant not found for this event' });
@@ -156,6 +159,7 @@ router.post('/mark-attendance', async (req, res) => {
     
     res.json({ message: 'Attendance marked successfully' });
   } catch (error) {
+    console.error('Mark attendance error:', error);
     res.status(500).json({ error: error.message });
   }
 });
