@@ -14,7 +14,8 @@ CREATE TABLE individual_registrations (
   screenshot_url VARCHAR(500),
   amount INTEGER DEFAULT 100,
   payment_status VARCHAR(50) DEFAULT 'pending',
-  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  present BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE team_registrations (
@@ -55,7 +56,8 @@ CREATE TABLE team_registrations (
   screenshot_url VARCHAR(500),
   amount INTEGER NOT NULL,
   payment_status VARCHAR(50) DEFAULT 'pending',
-  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  present BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE otps (

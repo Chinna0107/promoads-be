@@ -1,3 +1,7 @@
+-- Drop existing table if needed
+DROP TABLE IF EXISTS coordinators;
+
+-- Create new coordinators table with multiple events support
 CREATE TABLE coordinators (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
