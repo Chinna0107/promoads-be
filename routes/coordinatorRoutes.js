@@ -137,29 +137,84 @@ router.post('/mark-attendance', async (req, res) => {
     const { email, eventName, present } = req.body;
     console.log('Mark attendance request:', { email, eventName, present });
     
+    // Check if participant exists first
+    const checkIndividual = await sql`
+      SELECT * FROM individual_registrations 
+      WHERE email = ${email}
+    `;
+    const checkTeam = await sql`
+      SELECT * FROM team_registrations 
+      WHERE leader_email = ${email}
+    `;
+    
+    console.log('Found individual registrations:', checkIndividual.length);
+    console.log('Found team registrations:', checkTeam.length);
+    
+    if (checkIndividual.length > 0) {
+      console.log('Individual events:', checkIndividual.map(r => r.event_name));
+    }
+    if (checkTeam.length > 0) {
+      console.log('Team events:', checkTeam.map(r => r.event_name));
+    }
+    
     const individual = await sql`
       UPDATE individual_registrations 
       SET present = ${present} 
-      WHERE email = ${email} AND event_name = ${eventName}
+      WHERE LOWER(email) = LOWER(${email}) AND LOWER(event_name) = LOWER(${eventName})
       RETURNING *
     `;
-    console.log('Individual updated:', individual.length);
     
     const team = await sql`
       UPDATE team_registrations 
       SET present = ${present} 
-      WHERE leader_email = ${email} AND event_name = ${eventName}
+      WHERE LOWER(leader_email) = LOWER(${email}) AND LOWER(event_name) = LOWER(${eventName})
       RETURNING *
     `;
-    console.log('Team updated:', team.length);
     
     if (individual.length === 0 && team.length === 0) {
-      return res.status(404).json({ error: 'Participant not found for this event' });
+      return res.status(404).json({ 
+        error: 'Participant not found for this event',
+        debug: {
+          email,
+          eventName,
+          foundInOtherEvents: checkIndividual.length > 0 || checkTeam.length > 0,
+          registeredEvents: [
+            ...checkIndividual.map(r => r.event_name),
+            ...checkTeam.map(r => r.event_name)
+          ]
+        }
+      });
     }
     
     res.json({ message: 'Attendance marked successfully' });
   } catch (error) {
     console.error('Mark attendance error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/attendance/:eventName', async (req, res) => {
+  try {
+    const { eventName } = req.params;
+    
+    const individual = await sql`
+      SELECT name as "participantName", email as "participantId", registered_at as timestamp
+      FROM individual_registrations 
+      WHERE event_name = ${eventName} AND present = true
+    `;
+    
+    const team = await sql`
+      SELECT leader_name as "participantName", leader_email as "participantId", registered_at as timestamp
+      FROM team_registrations 
+      WHERE event_name = ${eventName} AND present = true
+    `;
+    
+    const attendance = [...individual, ...team].sort((a, b) => 
+      new Date(b.timestamp) - new Date(a.timestamp)
+    );
+    
+    res.json({ attendance });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
