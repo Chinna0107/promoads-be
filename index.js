@@ -6,6 +6,7 @@ const adminRoutes = require('./routes/AdminRoutes');
 const participantRoutes = require('./routes/participantRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const coordinatorRoutes = require('./routes/coordinatorRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,6 +31,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/participants', participantRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/coordinators', coordinatorRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.get('/', (req, res) => {
   res.send('✅ TRI-COD 2K26 Backend Running Successfully!');

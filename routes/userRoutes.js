@@ -34,17 +34,31 @@ router.post('/send-otp', async (req, res) => {
     const { email } = req.body;
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
+    // Check if email already exists in registrations
+    const existingIndividual = await sql`
+      SELECT email FROM individual_registrations WHERE email = ${email} LIMIT 1
+    `;
+    
+    const existingTeam = await sql`
+      SELECT leader_email FROM team_registrations WHERE leader_email = ${email} LIMIT 1
+    `;
+    
+    const isExistingUser = existingIndividual.length > 0 || existingTeam.length > 0;
+    
     await sql`DELETE FROM otps WHERE email = ${email}`;
     await sql`INSERT INTO otps (email, otp) VALUES (${email}, ${otp})`;
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Email Verification - Trishna 2K25',
+      subject: 'Email Verification - Trishna 2K26',
       text: `Your OTP is: ${otp}`
     });
 
-    res.json({ message: 'OTP sent successfully' });
+    res.json({ 
+      message: 'OTP sent successfully',
+      isExistingUser: isExistingUser
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -68,13 +82,25 @@ router.post('/verify-otp', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, rollNo, mobile, year, branch, email, college, password, eventId, eventName, transactionId, screenshotUrl } = req.body;
+    const { name, rollNo, mobile, year, branch, email, college, password, eventId, eventName, transactionId, screenshotUrl, isExistingUser } = req.body;
 
     if (!eventId || !eventName) {
       return res.status(400).json({ error: 'Event ID and Event Name are required' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    let hashedPassword = null;
+    
+    if (!isExistingUser && password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    } else if (isExistingUser) {
+      // Get existing password for existing users
+      const existingUser = await sql`
+        SELECT password FROM individual_registrations WHERE email = ${email} LIMIT 1
+      `;
+      if (existingUser.length > 0) {
+        hashedPassword = existingUser[0].password;
+      }
+    }
 
     const registration = await sql`
       INSERT INTO individual_registrations (event_id, event_name, name, email, mobile, roll_no, year, branch, college, password, transaction_id, screenshot_url, payment_status)
@@ -93,7 +119,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/register-team', async (req, res) => {
   try {
-    const { teamName, teamLeader, members, eventId, eventName, transactionId, screenshotUrl } = req.body;
+    const { teamName, teamLeader, members, eventId, eventName, transactionId, screenshotUrl, isExistingUser } = req.body;
     
     console.log('Team registration request:', { teamName, memberCount: members?.length, eventId, eventName });
     console.log('Members:', JSON.stringify(members, null, 2));
@@ -101,7 +127,27 @@ router.post('/register-team', async (req, res) => {
     const totalMembers = (members?.length || 0) + 1;
     const amount = totalMembers * 100;
 
-    const hashedPassword = await bcrypt.hash(teamLeader.password, 10);
+    let hashedPassword = null;
+    
+    if (!isExistingUser && teamLeader.password) {
+      hashedPassword = await bcrypt.hash(teamLeader.password, 10);
+    } else if (isExistingUser) {
+      // Get existing password for existing team leader
+      const existingLeader = await sql`
+        SELECT leader_password FROM team_registrations WHERE leader_email = ${teamLeader.email} LIMIT 1
+      `;
+      if (existingLeader.length > 0) {
+        hashedPassword = existingLeader[0].leader_password;
+      } else {
+        // Check individual registrations as fallback
+        const existingIndividual = await sql`
+          SELECT password FROM individual_registrations WHERE email = ${teamLeader.email} LIMIT 1
+        `;
+        if (existingIndividual.length > 0) {
+          hashedPassword = existingIndividual[0].password;
+        }
+      }
+    }
 
     const registration = await sql`
       INSERT INTO team_registrations (

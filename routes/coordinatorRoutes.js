@@ -196,25 +196,54 @@ router.post('/mark-attendance', async (req, res) => {
 router.get('/attendance/:eventName', async (req, res) => {
   try {
     const { eventName } = req.params;
+    const decodedEventName = decodeURIComponent(eventName);
+    console.log('Fetching attendance for event:', decodedEventName);
     
-    const individual = await sql`
-      SELECT name as "participantName", email as "participantId", registered_at as timestamp
-      FROM individual_registrations 
-      WHERE event_name = ${eventName} AND present = true
-    `;
+    // Try multiple search patterns like other endpoints
+    const searchPatterns = [
+      decodedEventName,
+      decodedEventName.toLowerCase(),
+      decodedEventName.replace(/\s+/g, '-').toLowerCase(),
+      decodedEventName.replace(/\s+/g, '_').toLowerCase(),
+      // Handle title case variations
+      decodedEventName.replace(/\b\w/g, l => l.toUpperCase()),
+      // Handle specific case patterns
+      // 'Fun Tech (Mind Games)',
+      // 'fun tech (mind games)',
+      // 'fun-tech-(mind-games)',
+      // 'fun_tech_(mind_games)'
+    ];
     
-    const team = await sql`
-      SELECT leader_name as "participantName", leader_email as "participantId", registered_at as timestamp
-      FROM team_registrations 
-      WHERE event_name = ${eventName} AND present = true
-    `;
+    let attendance = [];
     
-    const attendance = [...individual, ...team].sort((a, b) => 
-      new Date(b.timestamp) - new Date(a.timestamp)
-    );
+    for (const pattern of searchPatterns) {
+      const individual = await sql`
+        SELECT name as "participantName", email as "participantId", registered_at as timestamp
+        FROM individual_registrations 
+        WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND present = true
+      `;
+      
+      const team = await sql`
+        SELECT leader_name as "participantName", leader_email as "participantId", registered_at as timestamp
+        FROM team_registrations 
+        WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND present = true
+      `;
+      
+      const totalAttendance = [...individual, ...team];
+      
+      if (totalAttendance.length > 0) {
+        console.log(`Found attendance with pattern '${pattern}':`, totalAttendance.length);
+        attendance = totalAttendance.sort((a, b) => 
+          new Date(b.timestamp) - new Date(a.timestamp)
+        );
+        break;
+      }
+    }
     
+    console.log('Total attendance found:', attendance.length);
     res.json({ attendance });
   } catch (error) {
+    console.error('Error fetching attendance:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -333,7 +362,13 @@ router.get('/participants/:eventName', authenticateCoordinator, async (req, res)
       decodedEventName.toLowerCase(),
       decodedEventName.replace(/\s+/g, '-').toLowerCase(),
       decodedEventName.replace(/\s+/g, '_').toLowerCase(),
-      'cook-without-fire'
+      // Handle title case variations
+      decodedEventName.replace(/\b\w/g, l => l.toUpperCase()),
+      // Handle specific case patterns
+      'Fun Tech (Mind Games)',
+      'fun tech (mind games)',
+      'fun-tech-(mind-games)',
+      'fun_tech_(mind_games)'
     ];
     
     console.log('Trying search patterns:', searchPatterns);
@@ -343,13 +378,13 @@ router.get('/participants/:eventName', authenticateCoordinator, async (req, res)
     
     for (const pattern of searchPatterns) {
       const indResult = await sql`
-        SELECT id, name, email, roll_no as rollNo, year, branch, college
+        SELECT id, name, email, roll_no as rollNo, year, branch, college, mobile
         FROM individual_registrations 
         WHERE event_name = ${pattern} OR event_id = ${pattern}
       `;
       
       const teamResult = await sql`
-        SELECT id, leader_name as name, leader_email as email, leader_roll_no as rollNo, leader_year as year, leader_branch as branch, leader_college as college
+        SELECT id, leader_name as name, leader_email as email, leader_roll_no as rollNo, leader_year as year, leader_branch as branch, leader_college as college, leader_mobile as mobile
         FROM team_registrations 
         WHERE event_name = ${pattern} OR event_id = ${pattern}
       `;
@@ -402,14 +437,14 @@ router.get('/participant/:eventName/:participantName', authenticateCoordinator, 
     
     // Search for participant by name (case-insensitive)
     const individual = await sql`
-      SELECT id, name, email, roll_no as rollNo, year, branch, college
+      SELECT id, name, email, roll_no as rollNo, year, branch, college, mobile
       FROM individual_registrations 
       WHERE LOWER(name) LIKE LOWER(${'%' + decodedParticipantName + '%'})
       AND (event_name = ${decodedEventName} OR event_id = ${decodedEventName})
     `;
     
     const team = await sql`
-      SELECT id, leader_name as name, leader_email as email, leader_roll_no as rollNo, leader_year as year, leader_branch as branch, leader_college as college
+      SELECT id, leader_name as name, leader_email as email, leader_roll_no as rollNo, leader_year as year, leader_branch as branch, leader_college as college, leader_mobile as mobile
       FROM team_registrations 
       WHERE LOWER(leader_name) LIKE LOWER(${'%' + decodedParticipantName + '%'})
       AND (event_name = ${decodedEventName} OR event_id = ${decodedEventName})
@@ -449,13 +484,19 @@ router.get('/evaluations/:eventName', authenticateCoordinator, async (req, res) 
     
     console.log('Fetching evaluations for event:', decodedEventName);
     
-    // Try multiple search patterns like in participants route
+    // Try multiple search patterns like in other endpoints
     const searchPatterns = [
       decodedEventName,
       decodedEventName.toLowerCase(),
       decodedEventName.replace(/\s+/g, '-').toLowerCase(),
       decodedEventName.replace(/\s+/g, '_').toLowerCase(),
-      'cook-without-fire'
+      // Handle title case variations
+      decodedEventName.replace(/\b\w/g, l => l.toUpperCase()),
+      // Handle specific case patterns
+      'Fun Tech (Mind Games)',
+      'fun tech (mind games)',
+      'fun-tech-(mind-games)',
+      'fun_tech_(mind_games)'
     ];
     
     let evaluations = [];
@@ -653,4 +694,78 @@ router.post('/evaluate', authenticateCoordinator, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Get event stats for live status
+router.get('/event-stats/:eventName', authenticateCoordinator, async (req, res) => {
+  try {
+    const { eventName } = req.params;
+    const decodedEventName = decodeURIComponent(eventName);
+    console.log('Fetching stats for event:', decodedEventName);
+    
+    // Try multiple search patterns like in other endpoints
+    const searchPatterns = [
+      decodedEventName,
+      decodedEventName.toLowerCase(),
+      decodedEventName.replace(/\s+/g, '-').toLowerCase(),
+      decodedEventName.replace(/\s+/g, '_').toLowerCase(),
+      // Handle title case variations
+      decodedEventName.replace(/\b\w/g, l => l.toUpperCase()),
+      // Handle specific case patterns
+      'Fun Tech (Mind Games)',
+      'fun tech (mind games)',
+      'fun-tech-(mind-games)',
+      'fun_tech_(mind_games)'
+    ];
+    
+    let totalParticipants = 0;
+    let attended = 0;
+    
+    for (const pattern of searchPatterns) {
+      // Get total participants
+      const individual = await sql`
+        SELECT COUNT(*) as count FROM individual_registrations 
+        WHERE event_name = ${pattern} OR event_id = ${pattern}
+      `;
+      
+      const team = await sql`
+        SELECT COUNT(*) as count FROM team_registrations 
+        WHERE event_name = ${pattern} OR event_id = ${pattern}
+      `;
+      
+      const total = parseInt(individual[0].count) + parseInt(team[0].count);
+      
+      if (total > 0) {
+        console.log(`Found participants with pattern '${pattern}':`, total);
+        totalParticipants = total;
+        
+        // Get attended count
+        const attendedIndividual = await sql`
+          SELECT COUNT(*) as count FROM individual_registrations 
+          WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND present = true
+        `;
+        
+        const attendedTeam = await sql`
+          SELECT COUNT(*) as count FROM team_registrations 
+          WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND present = true
+        `;
+        
+        attended = parseInt(attendedIndividual[0].count) + parseInt(attendedTeam[0].count);
+        break;
+      }
+    }
+    
+    const absent = totalParticipants - attended;
+    
+    console.log('Event stats:', { totalParticipants, attended, absent });
+    res.json({
+      totalParticipants,
+      attended,
+      absent
+    });
+  } catch (error) {
+    console.error('Error fetching event stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
