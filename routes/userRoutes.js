@@ -323,7 +323,7 @@ router.post('/login', async (req, res) => {
     console.log(`Login successful: ${userEmail}, is_admin: ${isAdmin}`);
 
     const token = jwt.sign(
-      { id: user.id, email: userEmail, is_admin: isAdmin },
+      { id: user.id, email: userEmail, is_admin: isAdmin, type: user.type },
       process.env.JWT_SECRET || 'secret123',
       { expiresIn: '1h' }
     );
@@ -335,13 +335,65 @@ router.post('/login', async (req, res) => {
         id: user.id,
         name: user.type === 'individual' ? user.name : user.leader_name,
         email: userEmail,
-        mobile: user.type === 'individual' ? user.mobile : user.leader_mobile
+        mobile: user.type === 'individual' ? user.mobile : user.leader_mobile,
+        rollNo: user.type === 'individual' ? user.roll_no : user.leader_roll_no,
+        year: user.type === 'individual' ? user.year : user.leader_year,
+        branch: user.type === 'individual' ? user.branch : user.leader_branch,
+        college: user.type === 'individual' ? user.college : user.leader_college
       },
       is_admin: isAdmin
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    const { id, email, type } = req.user;
+    
+    if (type === 'individual') {
+      const profile = await sql`SELECT * FROM individual_registrations WHERE email = ${email} LIMIT 1`;
+      if (profile.length > 0) {
+        const user = profile[0];
+        res.json({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          mobile: user.mobile,
+          rollNo: user.roll_no,
+          year: user.year,
+          branch: user.branch,
+          college: user.college,
+          eventName: user.event_name
+        });
+      } else {
+        res.status(404).json({ error: 'Profile not found' });
+      }
+    } else if (type === 'team') {
+      const profile = await sql`SELECT * FROM team_registrations WHERE leader_email = ${email} LIMIT 1`;
+      if (profile.length > 0) {
+        const user = profile[0];
+        res.json({
+          id: user.id,
+          name: user.leader_name,
+          email: user.leader_email,
+          mobile: user.leader_mobile,
+          rollNo: user.leader_roll_no,
+          year: user.leader_year,
+          branch: user.leader_branch,
+          college: user.leader_college,
+          eventName: user.event_name
+        });
+      } else {
+        res.status(404).json({ error: 'Profile not found' });
+      }
+    } else {
+      res.status(400).json({ error: 'Invalid user type' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
