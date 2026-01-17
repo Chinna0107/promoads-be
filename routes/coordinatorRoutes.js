@@ -218,13 +218,15 @@ router.get('/attendance/:eventName', async (req, res) => {
     
     for (const pattern of searchPatterns) {
       const individual = await sql`
-        SELECT name as "participantName", email as "participantId", registered_at as timestamp
+        SELECT name as "participantName", email as "participantId", registered_at as timestamp,
+               roll_no as "rollNo", branch, college
         FROM individual_registrations 
         WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND present = true
       `;
       
       const team = await sql`
-        SELECT leader_name as "participantName", leader_email as "participantId", registered_at as timestamp
+        SELECT leader_name as "participantName", leader_email as "participantId", registered_at as timestamp,
+               leader_roll_no as "rollNo", leader_branch as branch, leader_college as college
         FROM team_registrations 
         WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND present = true
       `;
