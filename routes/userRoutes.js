@@ -64,6 +64,110 @@ router.post('/send-otp', async (req, res) => {
   }
 });
 
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Check if user exists
+    const individual = await sql`SELECT email FROM individual_registrations WHERE email = ${email} LIMIT 1`;
+    const team = await sql`SELECT leader_email FROM team_registrations WHERE leader_email = ${email} LIMIT 1`;
+    
+    if (individual.length === 0 && team.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    await sql`DELETE FROM otps WHERE email = ${email}`;
+    await sql`INSERT INTO otps (email, otp) VALUES (${email}, ${otp})`;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset OTP - Trishna 2K26',
+      text: `Your password reset OTP is: ${otp}`
+    });
+
+    res.json({ message: 'OTP sent successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    console.log('Full request body:', JSON.stringify(req.body, null, 2));
+    const { email, otp, newPassword } = req.body;
+    
+    // Log each field individually
+    console.log('Individual fields:', {
+      email: email,
+      otp: otp,
+      newPassword: newPassword ? '[PROVIDED]' : '[MISSING]',
+      emailType: typeof email,
+      otpType: typeof otp,
+      passwordType: typeof newPassword
+    });
+    
+    if (!email || !otp || !newPassword) {
+      console.log('Validation failed:', { email: !!email, otp: !!otp, newPassword: !!newPassword });
+      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+    }
+    
+    console.log('Checking OTP in database...');
+    const otpResult = await sql`SELECT * FROM otps WHERE email = ${email} AND otp = ${otp}`;
+    console.log('OTP check result:', otpResult.length > 0 ? 'FOUND' : 'NOT FOUND');
+    
+    if (otpResult.length === 0) {
+      // Check if there's any OTP for this email
+      const anyOtp = await sql`SELECT * FROM otps WHERE email = ${email}`;
+      console.log('Any OTP for email:', anyOtp.length > 0 ? 'EXISTS' : 'NONE');
+      if (anyOtp.length > 0) {
+        console.log('Existing OTP:', anyOtp[0].otp);
+      }
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+    
+    console.log('OTP verified, checking user existence...');
+    const individual = await sql`SELECT email FROM individual_registrations WHERE email = ${email}`;
+    const team = await sql`SELECT leader_email FROM team_registrations WHERE leader_email = ${email}`;
+    
+    console.log('User check:', { individual: individual.length, team: team.length });
+    
+    if (individual.length === 0 && team.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    console.log('Hashing new password...');
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    let updated = false;
+    if (individual.length > 0) {
+      console.log('Updating individual registration...');
+      await sql`UPDATE individual_registrations SET password = ${hashedPassword} WHERE email = ${email}`;
+      updated = true;
+    }
+    if (team.length > 0) {
+      console.log('Updating team registration...');
+      await sql`UPDATE team_registrations SET leader_password = ${hashedPassword} WHERE leader_email = ${email}`;
+      updated = true;
+    }
+    
+    if (!updated) {
+      return res.status(500).json({ message: 'Failed to update password' });
+    }
+    
+    console.log('Deleting OTP...');
+    await sql`DELETE FROM otps WHERE email = ${email}`;
+    
+    console.log('Password reset successful!');
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+
 router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -73,7 +177,7 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
-    await sql`DELETE FROM otps WHERE email = ${email}`;
+    // Don't delete OTP here - let reset-password handle it
     res.json({ message: 'Email verified successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
