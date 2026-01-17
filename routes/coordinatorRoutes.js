@@ -364,11 +364,11 @@ router.get('/participants/:eventName', authenticateCoordinator, async (req, res)
       decodedEventName.replace(/\s+/g, '_').toLowerCase(),
       // Handle title case variations
       decodedEventName.replace(/\b\w/g, l => l.toUpperCase()),
-      // Handle specific case patterns
-      'Fun Tech (Mind Games)',
-      'fun tech (mind games)',
-      'fun-tech-(mind-games)',
-      'fun_tech_(mind_games)'
+      // // Handle specific case patterns
+      // 'Fun Tech (Mind Games)',
+      // 'fun tech (mind games)',
+      // 'fun-tech-(mind-games)',
+      // 'fun_tech_(mind_games)'
     ];
     
     console.log('Trying search patterns:', searchPatterns);
@@ -492,11 +492,11 @@ router.get('/evaluations/:eventName', authenticateCoordinator, async (req, res) 
       decodedEventName.replace(/\s+/g, '_').toLowerCase(),
       // Handle title case variations
       decodedEventName.replace(/\b\w/g, l => l.toUpperCase()),
-      // Handle specific case patterns
-      'Fun Tech (Mind Games)',
-      'fun tech (mind games)',
-      'fun-tech-(mind-games)',
-      'fun_tech_(mind_games)'
+      // // Handle specific case patterns
+      // 'Fun Tech (Mind Games)',
+      // 'fun tech (mind games)',
+      // 'fun-tech-(mind-games)',
+      // 'fun_tech_(mind_games)'
     ];
     
     let evaluations = [];
@@ -711,10 +711,10 @@ router.get('/event-stats/:eventName', authenticateCoordinator, async (req, res) 
       // Handle title case variations
       decodedEventName.replace(/\b\w/g, l => l.toUpperCase()),
       // Handle specific case patterns
-      'Fun Tech (Mind Games)',
-      'fun tech (mind games)',
-      'fun-tech-(mind-games)',
-      'fun_tech_(mind_games)'
+      // 'Fun Tech (Mind Games)',
+      // 'fun tech (mind games)',
+      // 'fun-tech-(mind-games)',
+      // 'fun_tech_(mind_games)'
     ];
     
     let totalParticipants = 0;
