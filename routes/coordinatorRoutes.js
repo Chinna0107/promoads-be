@@ -382,17 +382,17 @@ router.get('/participants/:eventName', authenticateCoordinator, async (req, res)
       const indResult = await sql`
         SELECT id, name, email, roll_no as rollNo, year, branch, college, mobile
         FROM individual_registrations 
-        WHERE event_name = ${pattern} OR event_id = ${pattern}
+        WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND paid = true
       `;
       
       const teamResult = await sql`
         SELECT id, leader_name as name, leader_email as email, leader_roll_no as rollNo, leader_year as year, leader_branch as branch, leader_college as college, leader_mobile as mobile
         FROM team_registrations 
-        WHERE event_name = ${pattern} OR event_id = ${pattern}
+        WHERE (event_name = ${pattern} OR event_id = ${pattern}) AND paid = true
       `;
       
       if (indResult.length > 0 || teamResult.length > 0) {
-        console.log(`Found participants with pattern '${pattern}':`, indResult.length + teamResult.length);
+        console.log(`Found paid participants with pattern '${pattern}':`, indResult.length + teamResult.length);
         individual = indResult;
         team = teamResult;
         break;
@@ -443,6 +443,7 @@ router.get('/participant/:eventName/:participantName', authenticateCoordinator, 
       FROM individual_registrations 
       WHERE LOWER(name) LIKE LOWER(${'%' + decodedParticipantName + '%'})
       AND (event_name = ${decodedEventName} OR event_id = ${decodedEventName})
+      AND paid = true
     `;
     
     const team = await sql`
@@ -450,6 +451,7 @@ router.get('/participant/:eventName/:participantName', authenticateCoordinator, 
       FROM team_registrations 
       WHERE LOWER(leader_name) LIKE LOWER(${'%' + decodedParticipantName + '%'})
       AND (event_name = ${decodedEventName} OR event_id = ${decodedEventName})
+      AND paid = true
     `;
     
     const participants = [...individual, ...team];
