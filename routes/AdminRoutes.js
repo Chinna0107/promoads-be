@@ -119,16 +119,18 @@ router.get('/registrations/event/:eventId', authenticateAdmin, async (req, res) 
         branch: t.leader_branch,
         college: t.leader_college,
         teamName: t.team_name,
+        paid: t.paid || false,
         members
       };
     });
     
-    // Format individual registrations to include rollNo, year, branch
+    // Format individual registrations to include rollNo, year, branch, paid
     const formattedIndividual = individual.map(i => ({
       ...i,
       rollNo: i.roll_no,
       year: i.year,
-      branch: i.branch
+      branch: i.branch,
+      paid: i.paid || false
     }));
     
     const registrations = [...formattedIndividual, ...team].sort((a, b) => 
@@ -257,6 +259,21 @@ router.post('/notifications/send', authenticateAdmin, upload.single('attachment'
   }
 });
 
+router.put('/payment-status/:userId', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { paymentStatus } = req.body;
+    const isPaid = paymentStatus === 'paid';
+    
+    await sql`UPDATE individual_registrations SET paid = ${isPaid} WHERE id = ${userId}`;
+    await sql`UPDATE team_registrations SET paid = ${isPaid} WHERE id = ${userId}`;
+    
+    res.json({ message: 'Payment status updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/export/excel/:eventId', authenticateAdmin, async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -276,7 +293,9 @@ router.get('/export/excel/:eventId', authenticateAdmin, async (req, res) => {
       { header: 'Mobile', key: 'mobile', width: 15 },
       { header: 'College', key: 'college', width: 25 },
       { header: 'Team', key: 'team', width: 20 },
-      { header: 'Role', key: 'role', width: 12 }
+      { header: 'Role', key: 'role', width: 12 },
+      { header: 'Payment Method', key: 'paymentMethod', width: 15 },
+      { header: 'Coordinator', key: 'coordinator', width: 20 }
     ];
     
     individual.forEach(reg => {
@@ -289,12 +308,13 @@ router.get('/export/excel/:eventId', authenticateAdmin, async (req, res) => {
         mobile: reg.mobile,
         college: reg.college,
         team: '-',
-        role: 'Individual'
+        role: 'Individual',
+        paymentMethod: reg.payment_method || 'UPI',
+        coordinator: reg.coordinator || '-'
       });
     });
     
     team.forEach(reg => {
-      // Add leader
       worksheet.addRow({
         name: reg.leader_name,
         email: reg.leader_email,
@@ -304,10 +324,11 @@ router.get('/export/excel/:eventId', authenticateAdmin, async (req, res) => {
         mobile: reg.leader_mobile,
         college: reg.leader_college,
         team: reg.team_name,
-        role: 'Leader'
+        role: 'Leader',
+        paymentMethod: reg.payment_method || 'UPI',
+        coordinator: reg.coordinator || '-'
       });
       
-      // Add members
       if (reg.member2_name) {
         worksheet.addRow({
           name: reg.member2_name,
@@ -318,7 +339,9 @@ router.get('/export/excel/:eventId', authenticateAdmin, async (req, res) => {
           mobile: reg.member2_mobile,
           college: reg.member2_college,
           team: reg.team_name,
-          role: 'Member'
+          role: 'Member',
+          paymentMethod: '-',
+          coordinator: '-'
         });
       }
       if (reg.member3_name) {
@@ -331,7 +354,9 @@ router.get('/export/excel/:eventId', authenticateAdmin, async (req, res) => {
           mobile: reg.member3_mobile,
           college: reg.member3_college,
           team: reg.team_name,
-          role: 'Member'
+          role: 'Member',
+          paymentMethod: '-',
+          coordinator: '-'
         });
       }
       if (reg.member4_name) {
@@ -344,7 +369,9 @@ router.get('/export/excel/:eventId', authenticateAdmin, async (req, res) => {
           mobile: reg.member4_mobile,
           college: reg.member4_college,
           team: reg.team_name,
-          role: 'Member'
+          role: 'Member',
+          paymentMethod: '-',
+          coordinator: '-'
         });
       }
     });

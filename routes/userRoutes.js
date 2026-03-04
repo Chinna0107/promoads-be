@@ -51,7 +51,7 @@ router.post('/send-otp', async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Email Verification - Trishna 2K26',
+      subject: 'Email Verification - CODEATHON 2K26',
       text: `Your OTP is: ${otp}`
     });
 
@@ -186,7 +186,7 @@ router.post('/verify-otp', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, rollNo, mobile, year, branch, email, college, password, eventId, eventName, transactionId, screenshotUrl, isExistingUser } = req.body;
+    const { name, rollNo, mobile, year, branch, email, college, password, eventId, eventName, transactionId, screenshotUrl, isExistingUser, paymentMethod, coordinator } = req.body;
 
     if (!eventId || !eventName) {
       return res.status(400).json({ error: 'Event ID and Event Name are required' });
@@ -197,7 +197,6 @@ router.post('/register', async (req, res) => {
     if (!isExistingUser && password) {
       hashedPassword = await bcrypt.hash(password, 10);
     } else if (isExistingUser) {
-      // Get existing password for existing users
       const existingUser = await sql`
         SELECT password FROM individual_registrations WHERE email = ${email} LIMIT 1
       `;
@@ -207,8 +206,8 @@ router.post('/register', async (req, res) => {
     }
 
     const registration = await sql`
-      INSERT INTO individual_registrations (event_id, event_name, name, email, mobile, roll_no, year, branch, college, password, transaction_id, screenshot_url, payment_status)
-      VALUES (${eventId}, ${eventName}, ${name}, ${email}, ${mobile}, ${rollNo}, ${year}, ${branch}, ${college}, ${hashedPassword}, ${transactionId}, ${screenshotUrl}, 'completed')
+      INSERT INTO individual_registrations (event_id, event_name, name, email, mobile, roll_no, year, branch, college, password, transaction_id, screenshot_url, payment_status, payment_method, coordinator)
+      VALUES (${eventId}, ${eventName}, ${name}, ${email}, ${mobile}, ${rollNo}, ${year}, ${branch}, ${college}, ${hashedPassword}, ${transactionId}, ${screenshotUrl}, 'completed', ${paymentMethod || 'upi'}, ${coordinator || null})
       RETURNING *
     `;
 
@@ -223,7 +222,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/register-team', async (req, res) => {
   try {
-    const { teamName, teamLeader, members, eventId, eventName, transactionId, screenshotUrl, isExistingUser } = req.body;
+    const { teamName, teamLeader, members, eventId, eventName, transactionId, screenshotUrl, isExistingUser, paymentMethod, coordinator } = req.body;
     
     console.log('Team registration request:', { teamName, memberCount: members?.length, eventId, eventName });
     console.log('Members:', JSON.stringify(members, null, 2));
@@ -236,14 +235,12 @@ router.post('/register-team', async (req, res) => {
     if (!isExistingUser && teamLeader.password) {
       hashedPassword = await bcrypt.hash(teamLeader.password, 10);
     } else if (isExistingUser) {
-      // Get existing password for existing team leader
       const existingLeader = await sql`
         SELECT leader_password FROM team_registrations WHERE leader_email = ${teamLeader.email} LIMIT 1
       `;
       if (existingLeader.length > 0) {
         hashedPassword = existingLeader[0].leader_password;
       } else {
-        // Check individual registrations as fallback
         const existingIndividual = await sql`
           SELECT password FROM individual_registrations WHERE email = ${teamLeader.email} LIMIT 1
         `;
@@ -260,7 +257,7 @@ router.post('/register-team', async (req, res) => {
         member2_name, member2_email, member2_mobile, member2_roll_no, member2_year, member2_branch, member2_college,
         member3_name, member3_email, member3_mobile, member3_roll_no, member3_year, member3_branch, member3_college,
         member4_name, member4_email, member4_mobile, member4_roll_no, member4_year, member4_branch, member4_college,
-        transaction_id, screenshot_url, amount, payment_status
+        transaction_id, screenshot_url, amount, payment_status, payment_method, coordinator
       )
       VALUES (
         ${eventId}, ${eventName}, ${teamName},
@@ -268,7 +265,7 @@ router.post('/register-team', async (req, res) => {
         ${members[0]?.name || null}, ${members[0]?.email || null}, ${members[0]?.mobile || null}, ${members[0]?.rollNo || null}, ${members[0]?.year || null}, ${members[0]?.branch || null}, ${members[0]?.college || null},
         ${members[1]?.name || null}, ${members[1]?.email || null}, ${members[1]?.mobile || null}, ${members[1]?.rollNo || null}, ${members[1]?.year || null}, ${members[1]?.branch || null}, ${members[1]?.college || null},
         ${members[2]?.name || null}, ${members[2]?.email || null}, ${members[2]?.mobile || null}, ${members[2]?.rollNo || null}, ${members[2]?.year || null}, ${members[2]?.branch || null}, ${members[2]?.college || null},
-        ${transactionId}, ${screenshotUrl}, ${amount}, 'completed'
+        ${transactionId}, ${screenshotUrl}, ${amount}, 'completed', ${paymentMethod || 'upi'}, ${coordinator || null}
       )
       RETURNING *
     `;
@@ -316,6 +313,11 @@ router.post('/login', async (req, res) => {
 
     if (!match) {
       return res.status(401).json({ error: 'Incorrect password.' });
+    }
+
+    const isPaid = user.paid || false;
+    if (!isPaid) {
+      return res.status(403).json({ error: 'Payment not verified. Please contact admin.' });
     }
 
     const isAdmin = user.is_admin || false;
@@ -392,6 +394,21 @@ router.get('/profile', verifyToken, async (req, res) => {
     } else {
       res.status(400).json({ error: 'Invalid user type' });
     }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/payment-status/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { paymentStatus } = req.body;
+    const isPaid = paymentStatus === 'paid';
+
+    await sql`UPDATE individual_registrations SET paid = ${isPaid} WHERE id = ${userId}`;
+    await sql`UPDATE team_registrations SET paid = ${isPaid} WHERE id = ${userId}`;
+
+    res.json({ success: true, message: 'Payment status updated' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
