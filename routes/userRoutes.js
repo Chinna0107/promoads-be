@@ -228,7 +228,7 @@ router.post('/register-team', async (req, res) => {
     console.log('Members:', JSON.stringify(members, null, 2));
     
     const totalMembers = (members?.length || 0) + 1;
-    const amount = totalMembers * 100;
+    const amount = totalMembers * 50;
 
     let hashedPassword = null;
     
