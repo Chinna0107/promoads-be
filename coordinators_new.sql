@@ -1,17 +1,17 @@
--- Drop existing table if needed
-DROP TABLE IF EXISTS coordinators;
+-- -- Drop existing table if needed
+-- DROP TABLE IF EXISTS coordinators;
 
--- Create new coordinators table with multiple events support
-CREATE TABLE coordinators (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  mobile VARCHAR(15) NOT NULL,
-  category1 VARCHAR(100),
-  event1 VARCHAR(255),
-  category2 VARCHAR(100),
-  event2 VARCHAR(255),
-  role VARCHAR(50) DEFAULT 'coordinator',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- -- Create new coordinators table with multiple events support
+-- CREATE TABLE coordinators (
+--   id SERIAL PRIMARY KEY,
+--   name VARCHAR(255) NOT NULL,
+--   email VARCHAR(255) UNIQUE NOT NULL,
+--   password VARCHAR(255) NOT NULL,
+--   mobile VARCHAR(15) NOT NULL,
+--   category1 VARCHAR(100),
+--   event1 VARCHAR(255),
+--   category2 VARCHAR(100),
+--   event2 VARCHAR(255),
+--   role VARCHAR(50) DEFAULT 'coordinator',
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
