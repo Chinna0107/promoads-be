@@ -414,4 +414,40 @@ router.put('/payment-status/:userId', async (req, res) => {
   }
 });
 
+router.get('/registered-events', verifyToken, async (req, res) => {
+  try {
+    const { email, type } = req.user;
+    
+    let events = [];
+    
+    if (type === 'individual') {
+      const registrations = await sql`
+        SELECT DISTINCT event_name, event_id FROM individual_registrations 
+        WHERE email = ${email}
+      `;
+      events = registrations.map(r => ({
+        id: r.event_id,
+        name: r.event_name,
+        icon: '🎯',
+        color: '#667eea'
+      }));
+    } else if (type === 'team') {
+      const registrations = await sql`
+        SELECT DISTINCT event_name, event_id FROM team_registrations 
+        WHERE leader_email = ${email}
+      `;
+      events = registrations.map(r => ({
+        id: r.event_id,
+        name: r.event_name,
+        icon: '👥',
+        color: '#764ba2'
+      }));
+    }
+    
+    res.json({ events });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
