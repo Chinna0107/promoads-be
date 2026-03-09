@@ -32,6 +32,9 @@ router.get('/visitor-count', async (req, res) => {
 router.post('/send-otp', async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Check if email already exists in registrations
@@ -67,8 +70,10 @@ router.post('/send-otp', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
     
-    // Check if user exists
     const individual = await sql`SELECT email FROM individual_registrations WHERE email = ${email} LIMIT 1`;
     const team = await sql`SELECT leader_email FROM team_registrations WHERE leader_email = ${email} LIMIT 1`;
     
@@ -84,103 +89,75 @@ router.post('/forgot-password', async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Password Reset OTP - Trishna 2K26',
+      subject: 'Password Reset OTP - Codeathon 2K26',
       text: `Your password reset OTP is: ${otp}`
-    });
+    }).catch(err => console.error('Email send error:', err));
 
     res.json({ message: 'OTP sent successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process request' });
   }
 });
 
 router.post('/reset-password', async (req, res) => {
   try {
-    console.log('Full request body:', JSON.stringify(req.body, null, 2));
     const { email, otp, newPassword } = req.body;
     
-    // Log each field individually
-    console.log('Individual fields:', {
-      email: email,
-      otp: otp,
-      newPassword: newPassword ? '[PROVIDED]' : '[MISSING]',
-      emailType: typeof email,
-      otpType: typeof otp,
-      passwordType: typeof newPassword
-    });
-    
-    if (!email || !otp || !newPassword) {
-      console.log('Validation failed:', { email: !!email, otp: !!otp, newPassword: !!newPassword });
+    if (!email || !otp || !newPassword || typeof email !== 'string' || typeof otp !== 'string' || typeof newPassword !== 'string') {
       return res.status(400).json({ message: 'Email, OTP, and new password are required' });
     }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
     
-    console.log('Checking OTP in database...');
     const otpResult = await sql`SELECT * FROM otps WHERE email = ${email} AND otp = ${otp}`;
-    console.log('OTP check result:', otpResult.length > 0 ? 'FOUND' : 'NOT FOUND');
     
     if (otpResult.length === 0) {
-      // Check if there's any OTP for this email
-      const anyOtp = await sql`SELECT * FROM otps WHERE email = ${email}`;
-      console.log('Any OTP for email:', anyOtp.length > 0 ? 'EXISTS' : 'NONE');
-      if (anyOtp.length > 0) {
-        console.log('Existing OTP:', anyOtp[0].otp);
-      }
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
     
-    console.log('OTP verified, checking user existence...');
     const individual = await sql`SELECT email FROM individual_registrations WHERE email = ${email}`;
     const team = await sql`SELECT leader_email FROM team_registrations WHERE leader_email = ${email}`;
-    
-    console.log('User check:', { individual: individual.length, team: team.length });
     
     if (individual.length === 0 && team.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    console.log('Hashing new password...');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
-    let updated = false;
     if (individual.length > 0) {
-      console.log('Updating individual registration...');
       await sql`UPDATE individual_registrations SET password = ${hashedPassword} WHERE email = ${email}`;
-      updated = true;
     }
     if (team.length > 0) {
-      console.log('Updating team registration...');
       await sql`UPDATE team_registrations SET leader_password = ${hashedPassword} WHERE leader_email = ${email}`;
-      updated = true;
     }
     
-    if (!updated) {
-      return res.status(500).json({ message: 'Failed to update password' });
-    }
-    
-    console.log('Deleting OTP...');
     await sql`DELETE FROM otps WHERE email = ${email}`;
     
-    console.log('Password reset successful!');
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
     console.error('Reset password error:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({ message: 'Failed to reset password' });
   }
 });
 
 router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
+    if (!email || !otp || typeof email !== 'string' || typeof otp !== 'string') {
+      return res.status(400).json({ error: 'Valid email and OTP are required' });
+    }
     const result = await sql`SELECT * FROM otps WHERE email = ${email} AND otp = ${otp}`;
     
     if (result.length === 0) {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
-    // Don't delete OTP here - let reset-password handle it
     res.json({ message: 'Email verified successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ error: 'Failed to verify OTP' });
   }
 });
 
@@ -188,8 +165,11 @@ router.post('/register', async (req, res) => {
   try {
     const { name, rollNo, mobile, year, branch, email, college, password, eventId, eventName, transactionId, screenshotUrl, isExistingUser, paymentMethod, coordinator } = req.body;
 
-    if (!eventId || !eventName) {
-      return res.status(400).json({ error: 'Event ID and Event Name are required' });
+    if (!name || !email || !mobile || !year || !branch || !college || !eventId || !eventName) {
+      return res.status(400).json({ error: 'All required fields must be filled' });
+    }
+    if (!email.includes('@')) {
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
     let hashedPassword = null;
@@ -224,8 +204,12 @@ router.post('/register-team', async (req, res) => {
   try {
     const { teamName, teamLeader, members, eventId, eventName, transactionId, screenshotUrl, isExistingUser, paymentMethod, coordinator } = req.body;
     
-    console.log('Team registration request:', { teamName, memberCount: members?.length, eventId, eventName });
-    console.log('Members:', JSON.stringify(members, null, 2));
+    if (!teamName || !teamLeader || !eventId || !eventName) {
+      return res.status(400).json({ error: 'Team name, leader info, event ID and name are required' });
+    }
+    if (!teamLeader.name || !teamLeader.email || !teamLeader.mobile) {
+      return res.status(400).json({ error: 'Team leader details incomplete' });
+    }
     
     const totalMembers = (members?.length || 0) + 1;
     const amount = totalMembers * 50;
@@ -281,8 +265,8 @@ router.post('/register-team', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { emailOrMobile, password } = req.body;
 
-  if (!emailOrMobile || !password) {
-    return res.status(400).json({ error: 'Email/Mobile and password are required.' });
+  if (!emailOrMobile || !password || typeof emailOrMobile !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Valid email/mobile and password are required.' });
   }
 
   try {
@@ -309,6 +293,9 @@ router.post('/login', async (req, res) => {
     }
 
     const userPassword = user.type === 'individual' ? user.password : user.leader_password;
+    if (!userPassword) {
+      return res.status(401).json({ error: 'User password not set. Please reset password.' });
+    }
     const match = await bcrypt.compare(password, userPassword);
 
     if (!match) {
@@ -353,49 +340,51 @@ router.post('/login', async (req, res) => {
 
 router.get('/profile', verifyToken, async (req, res) => {
   try {
-    const { id, email, type } = req.user;
+    const { email, type } = req.user;
+    if (!email || !type) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
     
     if (type === 'individual') {
       const profile = await sql`SELECT * FROM individual_registrations WHERE email = ${email} LIMIT 1`;
-      if (profile.length > 0) {
-        const user = profile[0];
-        res.json({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          mobile: user.mobile,
-          rollNo: user.roll_no,
-          year: user.year,
-          branch: user.branch,
-          college: user.college,
-          eventName: user.event_name
-        });
-      } else {
-        res.status(404).json({ error: 'Profile not found' });
+      if (profile.length === 0) {
+        return res.status(404).json({ error: 'Profile not found' });
       }
+      const user = profile[0];
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        rollNo: user.roll_no,
+        year: user.year,
+        branch: user.branch,
+        college: user.college,
+        eventName: user.event_name
+      });
     } else if (type === 'team') {
       const profile = await sql`SELECT * FROM team_registrations WHERE leader_email = ${email} LIMIT 1`;
-      if (profile.length > 0) {
-        const user = profile[0];
-        res.json({
-          id: user.id,
-          name: user.leader_name,
-          email: user.leader_email,
-          mobile: user.leader_mobile,
-          rollNo: user.leader_roll_no,
-          year: user.leader_year,
-          branch: user.leader_branch,
-          college: user.leader_college,
-          eventName: user.event_name
-        });
-      } else {
-        res.status(404).json({ error: 'Profile not found' });
+      if (profile.length === 0) {
+        return res.status(404).json({ error: 'Profile not found' });
       }
+      const user = profile[0];
+      res.json({
+        id: user.id,
+        name: user.leader_name,
+        email: user.leader_email,
+        mobile: user.leader_mobile,
+        rollNo: user.leader_roll_no,
+        year: user.leader_year,
+        branch: user.leader_branch,
+        college: user.leader_college,
+        eventName: user.event_name
+      });
     } else {
       res.status(400).json({ error: 'Invalid user type' });
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Profile error:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
@@ -403,6 +392,11 @@ router.put('/payment-status/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { paymentStatus } = req.body;
+    
+    if (!userId || !paymentStatus || typeof userId !== 'string') {
+      return res.status(400).json({ error: 'Valid userId and paymentStatus are required' });
+    }
+    
     const isPaid = paymentStatus === 'paid';
 
     await sql`UPDATE individual_registrations SET paid = ${isPaid} WHERE id = ${userId}`;
@@ -410,7 +404,8 @@ router.put('/payment-status/:userId', async (req, res) => {
 
     res.json({ success: true, message: 'Payment status updated' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Payment status error:', error);
+    res.status(500).json({ error: 'Failed to update payment status' });
   }
 });
 
