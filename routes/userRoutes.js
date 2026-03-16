@@ -409,6 +409,22 @@ router.put('/payment-status/:userId', async (req, res) => {
   }
 });
 
+router.get('/participant', async (req, res) => {
+  const { roll } = req.query;
+  try {
+    const individual = await sql`SELECT * FROM individual_registrations WHERE roll_no = ${roll} LIMIT 1`;
+    const team = await sql`SELECT * FROM team_registrations WHERE leader_roll_no = ${roll} LIMIT 1`;
+    const participant = individual[0] || team[0];
+    if (participant) {
+      res.json(participant);
+    } else {
+      res.status(404).json({ error: 'Participant not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/registered-events', verifyToken, async (req, res) => {
   try {
     const { email, type } = req.user;
