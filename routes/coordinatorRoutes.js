@@ -8,7 +8,9 @@ const { authenticateAdmin } = require('./adminAuth');
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('Login attempt:', email);
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
     
     const coordinator = await sql`SELECT * FROM coordinators WHERE email = ${email}`;
     console.log('Coordinator found:', coordinator.length > 0);
@@ -51,15 +53,25 @@ router.post('/login', async (req, res) => {
 router.get('/', authenticateAdmin, async (req, res) => {
   try {
     const coordinators = await sql`SELECT id, name, email, mobile, category1, event1, category2, event2, role, created_at FROM coordinators ORDER BY created_at DESC`;
-    res.json(coordinators);
+    res.json(coordinators || []);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Get coordinators error:', error);
+    res.status(500).json({ error: 'Failed to fetch coordinators' });
   }
 });
 
 router.post('/', authenticateAdmin, async (req, res) => {
   try {
     const { name, email, password, mobile, category1, event1, category2, event2, role } = req.body;
+    if (!name || !email || !password || !mobile || !category1 || !event1) {
+      return res.status(400).json({ error: 'Name, email, password, mobile, category and event are required' });
+    }
+
+    const existing = await sql`SELECT id FROM coordinators WHERE email = ${email} LIMIT 1`;
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'A coordinator with this email already exists' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     
     const coordinator = await sql`
@@ -70,7 +82,8 @@ router.post('/', authenticateAdmin, async (req, res) => {
     
     res.json(coordinator[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Add coordinator error:', error);
+    res.status(500).json({ error: 'Failed to add coordinator' });
   }
 });
 
