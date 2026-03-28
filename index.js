@@ -16,8 +16,8 @@ app.use(
       "http://localhost:5173",
       "http://localhost:5174",
       "http://localhost:3000",
-      "https://www.codeathon2k26.live",
-      "https://trishna-codeathon-git-main-hemanths-projects-89508a02.vercel.app"
+      "https://promoads-fr.vercel.app",
+      // "https://trishna-codeathon-git-main-hemanths-projects-89508a02.vercel.app"
     ],
     credentials: true,
   })
