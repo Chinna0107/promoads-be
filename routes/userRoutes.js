@@ -46,8 +46,10 @@ router.post('/send-otp', async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Email Verification - CODEATHON 2K26',
+      subject: 'Email Verification - PROMOADS',
       text: `Your OTP is: ${otp}`
+
+
     });
 
     res.json({ message: 'OTP sent successfully', isExistingUser });
